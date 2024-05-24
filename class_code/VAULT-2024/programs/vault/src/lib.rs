@@ -17,6 +17,9 @@ pub mod vault {
     pub fn withdraw(ctx: Context<Payment>, amount: u64) -> Result<()> {
         ctx.accounts.withdraw(amount)
     }
+    pub fn close(ctx: Context<Close>) -> Result<()> {
+        ctx.accounts.close()
+    }
 }
 
 #[derive(Accounts)]
@@ -96,6 +99,50 @@ impl<'info> Payment<'info> {
         let cpi_ctx  = CpiContext::new_with_signer(cpi_program.to_account_info(), cpi_accounts, signer_seed);
 
         transfer(cpi_ctx, amount)?;
+
+        Ok(())
+    }
+}
+
+#[derive(Accounts)]
+//we want to close the vault state account
+//we can't close any account which is System Account
+pub struct Close<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"vault", vault_state.key().as_ref()],
+        bump = vault_state.vault_bump,
+    )]
+    pub vault: SystemAccount<'info>,
+    #[account(
+        mut,
+        seeds = [b"state", user.key().as_ref()],
+        bump = vault_state.state_bump,
+        close=user
+    )]
+    pub vault_state: Account<'info, VaultState>,
+    pub system_program: Program<'info, System>,
+}
+
+impl <'info> Close<'info>{
+    pub fn close(&mut self) -> Result<()> {
+        let cpi_program = self.system_program.to_account_info();
+
+        let cpi_accounts: Transfer = Transfer {
+            from: self.vault.to_account_info(),
+            to: self.user.to_account_info(),
+        };
+
+        
+        let vault_bump= self.vault_state.vault_bump;
+        let vault_state_key=self.vault_state.key();
+        let signer_seed: &[&[&[u8]]] = &[&[b"vault", vault_state_key.as_ref(), &[vault_bump]]];
+
+        let cpi_ctx  = CpiContext::new_with_signer(cpi_program.to_account_info(), cpi_accounts, signer_seed);
+
+        transfer(cpi_ctx, self.vault.lamports())?;
 
         Ok(())
     }
