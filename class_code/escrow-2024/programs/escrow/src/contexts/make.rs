@@ -4,10 +4,10 @@ use anchor_spl::{associated_token::AssociatedToken, token::{transfer, Mint, Toke
 use crate::state::Escrow;
 
 #[derive(Accounts)]
-#[instruction(seed: u64)]
+#[instruction(seed: u64)] //this seed is the seed for the escrow account and is passed from the client side
 pub struct Make<'info> {
     #[account(mut)]
-    pub maker: Signer<'info>,
+    pub maker: Signer<'info>, //the maker of the escrow account
     pub mint_a: Account<'info, Mint>,
     pub mint_b: Account<'info, Mint>,
     #[account(
@@ -17,7 +17,7 @@ pub struct Make<'info> {
         bump,
         space = Escrow::INIT_SPACE
     )]
-    pub escrow: Account<'info, Escrow>,
+    pub escrow: Account<'info, Escrow>, //this is pda account that is why needed the seeds and bump
     #[account(
         mut,
         associated_token::mint = mint_a,
